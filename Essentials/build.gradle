@@ -44,6 +44,28 @@ tasks.register('versionData', VersionDataTask) {
     destination.set(rootProject.layout.projectDirectory.dir("generated").file("version-data.json"))
 }
 
+def getEssentialsCommandNames = {
+    def commandNames = []
+    def inCommands = false
+    file('src/main/resources/plugin.yml').eachLine { line ->
+        if (line.trim() == 'commands:') {
+            inCommands = true
+            return
+        }
+        if (!inCommands) {
+            return
+        }
+        if (!line.startsWith(' ')) {
+            inCommands = false
+            return
+        }
+        if (line.startsWith('  ') && !line.startsWith('    ') && line.trim().endsWith(':')) {
+            commandNames.add(line.trim()[0..-2])
+        }
+    }
+    return commandNames
+}
+
 shadowJar {
     dependencies {
         include (dependency('io.papermc:paperlib'))
@@ -102,5 +124,20 @@ shadowJar {
         include(dependency('net.kyori:adventure-api'))
         include(dependency('net.kyori:adventure-platform-bukkit'))
         include(dependency('net.kyori:adventure-text-minimessage'))
+    }
+
+    doLast {
+        def missingEntries = []
+        new java.util.zip.ZipFile(archiveFile.get().asFile).withCloseable { jar ->
+            getEssentialsCommandNames().each { commandName ->
+                def entryName = "com/earth2me/essentials/commands/Command${commandName}.class"
+                if (jar.getEntry(entryName) == null) {
+                    missingEntries.add(entryName)
+                }
+            }
+        }
+        if (!missingEntries.isEmpty()) {
+            throw new GradleException("EssentialsX jar is missing command classes declared in plugin.yml: ${missingEntries}")
+        }
     }
 }

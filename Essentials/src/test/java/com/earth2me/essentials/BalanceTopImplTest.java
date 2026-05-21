@@ -1,6 +1,7 @@
 package com.earth2me.essentials;
 
 import com.earth2me.essentials.userstorage.IUserMap;
+import com.earth2me.essentials.userstorage.BalanceTopUserData;
 import org.bukkit.Server;
 import org.bukkit.plugin.ServicesManager;
 import org.junit.jupiter.api.AfterEach;
@@ -10,9 +11,8 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -121,41 +121,42 @@ public class BalanceTopImplTest {
     }
 
     @Test
-    public void testOfflineUsernamesAreCachedSeparately() {
+    public void testBalanceTopUsesLightweightUserData() {
         final UUID uuid = UUID.randomUUID();
-        final Map<UUID, String> cachedNames = new HashMap<>();
-        final User user = mock(User.class);
         final BalanceTopImpl balanceTop = new BalanceTopImpl(ess);
+        final BalanceTopUserData userData = new BalanceTopUserData(uuid, "DiskName", BigDecimal.TEN, false, false, 1, 1);
 
         when(users.getAllUserUUIDs()).thenReturn(Collections.singleton(uuid));
-        when(users.loadUncachedUser(uuid)).thenReturn(user);
-        when(users.getCachedUsername(uuid)).thenAnswer(invocation -> cachedNames.get(uuid));
-        doAnswer(invocation -> {
-            cachedNames.put(invocation.getArgument(0), invocation.getArgument(1));
-            return null;
-        }).when(users).cacheUsername(any(UUID.class), any(String.class));
-
+        when(users.getBalanceTopUserData(uuid)).thenReturn(userData);
         when(settings.isNpcsInBalanceRanking()).thenReturn(false);
-        when(user.getUUID()).thenReturn(uuid);
-        when(user.getBase()).thenReturn(null);
-        when(user.isNPC()).thenReturn(false);
-        when(user.isBaltopExempt()).thenReturn(false);
-        when(user.getMoney()).thenReturn(BigDecimal.TEN);
-        when(user.getLastAccountName()).thenReturn("DiskName");
-        when(user.getName()).thenReturn("FallbackName");
 
-        CompletableFuture<Void> future = balanceTop.calculateBalanceTopMapAsync();
+        final CompletableFuture<Void> future = balanceTop.calculateBalanceTopMapAsync();
         asyncTasks.get(0).run();
         future.join();
-        assertEquals("DiskName", balanceTop.getBalanceTopCache().get(uuid).getDisplayName());
 
-        when(user.getLastAccountName()).thenThrow(new AssertionError("last-account-name should be cached"));
-        future = balanceTop.calculateBalanceTopMapAsync();
-        asyncTasks.get(1).run();
+        assertEquals("DiskName", balanceTop.getBalanceTopCache().get(uuid).getDisplayName());
+        assertEquals(BigDecimal.TEN, balanceTop.getBalanceTopCache().get(uuid).getBalance());
+        verify(users, never()).loadUncachedUser(uuid);
+    }
+
+    @Test
+    public void testBalanceTopSkipsSnapshotNpcAndExemptUsers() {
+        final UUID npcUuid = UUID.randomUUID();
+        final UUID exemptUuid = UUID.randomUUID();
+        final BalanceTopImpl balanceTop = new BalanceTopImpl(ess);
+
+        final HashSet<UUID> uuids = new HashSet<>();
+        uuids.add(npcUuid);
+        uuids.add(exemptUuid);
+        when(users.getAllUserUUIDs()).thenReturn(uuids);
+        when(users.getBalanceTopUserData(npcUuid)).thenReturn(new BalanceTopUserData(npcUuid, "Npc", BigDecimal.TEN, true, false, 1, 1));
+        when(users.getBalanceTopUserData(exemptUuid)).thenReturn(new BalanceTopUserData(exemptUuid, "Exempt", BigDecimal.TEN, false, true, 1, 1));
+        when(settings.isNpcsInBalanceRanking()).thenReturn(false);
+
+        final CompletableFuture<Void> future = balanceTop.calculateBalanceTopMapAsync();
+        asyncTasks.get(0).run();
         future.join();
 
-        assertEquals("DiskName", balanceTop.getBalanceTopCache().get(uuid).getDisplayName());
-        verify(user).getLastAccountName();
-        verify(user, never()).getDisplayName();
+        assertTrue(balanceTop.getBalanceTopCache().isEmpty());
     }
 }

@@ -67,6 +67,14 @@ public interface IUserMap {
     void cacheUsername(final UUID uuid, final String name);
 
     /**
+     * Gets the lightweight data needed for balance top without loading the full user when possible.
+     *
+     * @param uuid the UUID of the user to look up.
+     * @return the balance top data, or null if not found.
+     */
+    BalanceTopUserData getBalanceTopUserData(final UUID uuid);
+
+    /**
      * Gets the name to UUID cache.
      * @return the name to UUID cache.
      */

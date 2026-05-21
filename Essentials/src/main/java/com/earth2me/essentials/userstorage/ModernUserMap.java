@@ -2,15 +2,20 @@ package com.earth2me.essentials.userstorage;
 
 import com.earth2me.essentials.OfflinePlayerStub;
 import com.earth2me.essentials.User;
+import com.earth2me.essentials.config.EssentialsUserConfiguration;
+import com.earth2me.essentials.economy.EconomyLayer;
+import com.earth2me.essentials.economy.EconomyLayers;
 import com.earth2me.essentials.utils.NumberUtil;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import net.ess3.api.IEssentials;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 
 import java.io.File;
+import java.math.BigDecimal;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -26,6 +31,7 @@ public class ModernUserMap extends CacheLoader<UUID, User> implements IUserMap {
     private final transient ModernUUIDCache uuidCache;
     private final transient LoadingCache<UUID, User> userCache;
     private final transient Cache<UUID, String> usernameCache;
+    private final transient Cache<UUID, BalanceTopUserData> balanceTopUserDataCache;
     private final transient ConcurrentMap<UUID, User> onlineUserCache;
 
     private final boolean debugPrintStackWithWarn;
@@ -42,6 +48,10 @@ public class ModernUserMap extends CacheLoader<UUID, User> implements IUserMap {
                 .softValues()
                 .build(this);
         this.usernameCache = CacheBuilder.newBuilder()
+                .maximumSize(ess.getSettings().getUsernameCacheSize())
+                .expireAfterAccess(ess.getSettings().getUsernameCacheExpiry(), TimeUnit.SECONDS)
+                .build();
+        this.balanceTopUserDataCache = CacheBuilder.newBuilder()
                 .maximumSize(ess.getSettings().getUsernameCacheSize())
                 .expireAfterAccess(ess.getSettings().getUsernameCacheExpiry(), TimeUnit.SECONDS)
                 .build();
@@ -245,6 +255,113 @@ public class ModernUserMap extends CacheLoader<UUID, User> implements IUserMap {
         }
     }
 
+    @Override
+    public BalanceTopUserData getBalanceTopUserData(final UUID uuid) {
+        if (uuid == null) {
+            return null;
+        }
+
+        final User cachedUser = userCache.getIfPresent(uuid);
+        if (cachedUser != null) {
+            return getBalanceTopUserData(cachedUser);
+        }
+
+        final Player player = ess.getServer().getPlayer(uuid);
+        if (player != null) {
+            final User user = loadUncachedUser(player);
+            return getBalanceTopUserData(user);
+        }
+
+        final File userFile = getUserFile(uuid);
+        if (!userFile.exists()) {
+            return null;
+        }
+
+        final long lastModified = userFile.lastModified();
+        final long fileLength = userFile.length();
+        final BalanceTopUserData cachedData = balanceTopUserDataCache.getIfPresent(uuid);
+        if (cachedData != null && cachedData.isCurrent(lastModified, fileLength)) {
+            return cachedData;
+        }
+
+        final BalanceTopUserData loadedData = loadBalanceTopUserData(uuid, userFile, lastModified, fileLength);
+        if (loadedData != null) {
+            balanceTopUserDataCache.put(uuid, loadedData);
+        }
+        return loadedData;
+    }
+
+    private BalanceTopUserData getBalanceTopUserData(final User user) {
+        if (user == null) {
+            return null;
+        }
+
+        final String name = getBalanceTopName(user);
+        final BigDecimal money = user.getMoney();
+        user.updateMoneyCache(money);
+        return new BalanceTopUserData(user.getUUID(), name, money, user.isNPC(), user.isBaltopExempt(), -1, -1);
+    }
+
+    private String getBalanceTopName(final User user) {
+        final String cachedName = getCachedUsername(user.getUUID());
+        if (user.getBase() == null || user.getBase() instanceof OfflinePlayerStub) {
+            final String accountName = cachedName != null ? cachedName : user.getLastAccountName();
+            cacheUsername(user.getUUID(), accountName);
+            return accountName != null ? accountName : user.getName();
+        }
+
+        cacheUsername(user.getUUID(), user.getName());
+        return user.isHidden() ? user.getName() : user.getDisplayName();
+    }
+
+    private BalanceTopUserData loadBalanceTopUserData(final UUID uuid, final File userFile, final long lastModified, final long fileLength) {
+        final EssentialsUserConfiguration config = new EssentialsUserConfiguration(getCachedUsername(uuid), uuid, userFile);
+        config.load();
+
+        final boolean npc = config.getBoolean("npc", false);
+        final boolean baltopExempt = config.getBoolean("baltop-exempt", false);
+        final String name = config.getString("last-account-name", getCachedUsername(uuid));
+        cacheUsername(uuid, name);
+
+        final BigDecimal money = getBalanceTopMoney(uuid, name, npc, config.getBigDecimal("money", null));
+        return new BalanceTopUserData(uuid, name, money, npc, baltopExempt, lastModified, fileLength);
+    }
+
+    private BigDecimal getBalanceTopMoney(final UUID uuid, final String name, final boolean npc, final BigDecimal storedMoney) {
+        if (ess.getSettings().isEcoDisabled()) {
+            return BigDecimal.ZERO;
+        }
+
+        final EconomyLayer layer = EconomyLayers.getSelectedLayer();
+        if (layer != null) {
+            final OfflinePlayerStub player = new OfflinePlayerStub(uuid, ess.getServer());
+            player.setName(name);
+            final OfflinePlayer base = player;
+            if (layer.hasAccount(base) || layer.createPlayerAccount(base)) {
+                return layer.getBalance(base);
+            }
+        }
+
+        return clampStoredMoney(npc, storedMoney);
+    }
+
+    private BigDecimal clampStoredMoney(final boolean npc, final BigDecimal storedMoney) {
+        BigDecimal result = npc ? BigDecimal.ZERO : ess.getSettings().getStartingBalance();
+        if (storedMoney != null) {
+            result = storedMoney;
+        }
+
+        final BigDecimal maxMoney = ess.getSettings().getMaxMoney();
+        final BigDecimal minMoney = ess.getSettings().getMinMoney();
+        if (result.compareTo(maxMoney) > 0) {
+            result = maxMoney;
+        }
+        if (result.compareTo(minMoney) < 0) {
+            result = minMoney;
+        }
+        return result;
+    }
+
     private void cacheUsername(final User user) {
         if (user == null) {
             return;
@@ -272,6 +389,7 @@ public class ModernUserMap extends CacheLoader<UUID, User> implements IUserMap {
     public void invalidate(final UUID uuid) {
         userCache.invalidate(uuid);
         usernameCache.invalidate(uuid);
+        balanceTopUserDataCache.invalidate(uuid);
         uuidCache.removeCache(uuid);
     }
 
@@ -286,6 +404,7 @@ public class ModernUserMap extends CacheLoader<UUID, User> implements IUserMap {
     public void shutdown() {
         uuidCache.shutdown();
         onlineUserCache.clear();
+        balanceTopUserDataCache.invalidateAll();
     }
 
     private void debugLogCache(final User user) {

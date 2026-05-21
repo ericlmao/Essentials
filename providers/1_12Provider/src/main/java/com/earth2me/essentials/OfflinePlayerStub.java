@@ -76,7 +76,6 @@ public class OfflinePlayerStub implements Player {
         this.server = server;
         this.world = server.getWorlds().get(0);
         this.base = server.getOfflinePlayer(uuid);
-        this.name = base.getName();
     }
 
     public OfflinePlayerStub(final String name, final Server server) {
@@ -92,7 +91,7 @@ public class OfflinePlayerStub implements Player {
 
     @Override
     public String getDisplayName() {
-        return base.getName();
+        return getName();
     }
 
     @Override
@@ -1342,10 +1341,7 @@ public class OfflinePlayerStub implements Player {
     }
 
     public void setName(final String name) {
-        this.name = base.getName();
-        if (this.name == null) {
-            this.name = name;
-        }
+        this.name = name;
     }
 
     @Override
@@ -1370,7 +1366,7 @@ public class OfflinePlayerStub implements Player {
 
     @Override
     public boolean isBanned() {
-        if (base.getName() == null && getName() != null) {
+        if (getName() != null) {
             return server.getBanList(BanList.Type.NAME).isBanned(getName());
         }
         return base.isBanned();
@@ -1382,12 +1378,13 @@ public class OfflinePlayerStub implements Player {
         if (ReflUtil.getNmsVersionObject().isHigherThanOrEqualTo(ReflUtil.V1_12_R1)) {
             throw new UnsupportedOperationException("Cannot call setBanned on MC 1.12 and higher.");
         }
-        if (base.getName() == null && getName() != null) {
+        if (getName() != null) {
             if (banned) {
                 server.getBanList(BanList.Type.NAME).addBan(getName(), null, null, null);
             } else {
                 server.getBanList(BanList.Type.NAME).pardon(getName());
             }
+            return;
         }
         try {
             final Method method = base.getClass().getDeclaredMethod("setBanned", boolean.class);

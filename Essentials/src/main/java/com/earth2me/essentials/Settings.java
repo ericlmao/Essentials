@@ -1685,6 +1685,18 @@ public class Settings implements net.ess3.api.ISettings {
     }
 
     @Override
+    public int getUsernameCacheSize() {
+        final int entryLimit = getBaltopEntryLimit();
+        final int defaultSize = entryLimit > 0 ? Math.max(entryLimit, getMaxUserCacheCount()) : Math.max(10_000, getMaxUserCacheCount());
+        return config.getInt("username-cache-size", config.getInt("baltop-name-cache-size", defaultSize));
+    }
+
+    @Override
+    public long getUsernameCacheExpiry() {
+        return config.getLong("username-cache-expiry", config.getLong("baltop-name-cache-expiry", 6 * 60 * 60));
+    }
+
+    @Override
     public boolean isLastMessageReplyRecipient() {
         return config.getBoolean("last-message-reply-recipient", false);
     }

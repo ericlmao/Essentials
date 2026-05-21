@@ -7,9 +7,13 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -25,6 +29,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class BalanceTopImplTest {
@@ -112,5 +118,44 @@ public class BalanceTopImplTest {
 
         assertSame(firstFuture, secondFuture);
         assertEquals(1, asyncTasks.size());
+    }
+
+    @Test
+    public void testOfflineUsernamesAreCachedSeparately() {
+        final UUID uuid = UUID.randomUUID();
+        final Map<UUID, String> cachedNames = new HashMap<>();
+        final User user = mock(User.class);
+        final BalanceTopImpl balanceTop = new BalanceTopImpl(ess);
+
+        when(users.getAllUserUUIDs()).thenReturn(Collections.singleton(uuid));
+        when(users.loadUncachedUser(uuid)).thenReturn(user);
+        when(users.getCachedUsername(uuid)).thenAnswer(invocation -> cachedNames.get(uuid));
+        doAnswer(invocation -> {
+            cachedNames.put(invocation.getArgument(0), invocation.getArgument(1));
+            return null;
+        }).when(users).cacheUsername(any(UUID.class), any(String.class));
+
+        when(settings.isNpcsInBalanceRanking()).thenReturn(false);
+        when(user.getUUID()).thenReturn(uuid);
+        when(user.getBase()).thenReturn(null);
+        when(user.isNPC()).thenReturn(false);
+        when(user.isBaltopExempt()).thenReturn(false);
+        when(user.getMoney()).thenReturn(BigDecimal.TEN);
+        when(user.getLastAccountName()).thenReturn("DiskName");
+        when(user.getName()).thenReturn("FallbackName");
+
+        CompletableFuture<Void> future = balanceTop.calculateBalanceTopMapAsync();
+        asyncTasks.get(0).run();
+        future.join();
+        assertEquals("DiskName", balanceTop.getBalanceTopCache().get(uuid).getDisplayName());
+
+        when(user.getLastAccountName()).thenThrow(new AssertionError("last-account-name should be cached"));
+        future = balanceTop.calculateBalanceTopMapAsync();
+        asyncTasks.get(1).run();
+        future.join();
+
+        assertEquals("DiskName", balanceTop.getBalanceTopCache().get(uuid).getDisplayName());
+        verify(user).getLastAccountName();
+        verify(user, never()).getDisplayName();
     }
 }

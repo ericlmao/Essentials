@@ -1,7 +1,6 @@
 package com.earth2me.essentials.commands;
 
 import com.earth2me.essentials.CommandSource;
-import com.earth2me.essentials.User;
 import com.earth2me.essentials.textreader.SimpleTextInput;
 import com.earth2me.essentials.textreader.TextPager;
 import com.earth2me.essentials.adventure.AdventureUtil;
@@ -11,6 +10,8 @@ import com.earth2me.essentials.utils.VersionUtil;
 import com.google.common.collect.Lists;
 import net.essentialsx.api.v2.services.BalanceTop;
 import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
+import org.bukkit.entity.Player;
 import org.bukkit.Server;
 import org.bukkit.Statistic;
 import org.bukkit.command.BlockCommandSender;
@@ -101,6 +102,20 @@ public class Commandbalancetop extends EssentialsCommand {
             this.force = force;
         }
 
+        private long getPlaytime(final UUID uuid, final Statistic statistic, final boolean offlineStatisticSupported) {
+            final Player player = ess.getServer().getPlayer(uuid);
+            if (player != null) {
+                return player.getStatistic(statistic);
+            }
+
+            if (!offlineStatisticSupported) {
+                return -1;
+            }
+
+            final OfflinePlayer offlinePlayer = Bukkit.getServer().getOfflinePlayer(uuid);
+            return offlinePlayer.getStatistic(statistic);
+        }
+
         @Override
         public void run() {
             if (ess.getSettings().isEcoDisabled()) {
@@ -117,22 +132,13 @@ public class Commandbalancetop extends EssentialsCommand {
                     final SimpleTextInput newCache = new SimpleTextInput();
                     newCache.getLines().add(ess.getAdventureFacet().miniToLegacy(tlLiteral("serverTotal", AdventureUtil.parsed(NumberUtil.displayCurrency(ess.getBalanceTop().getBalanceTopTotal(), ess)))));
                     int pos = 1;
+                    final long minimumPlaytime = ess.getSettings().getBaltopMinPlaytime();
+                    final Statistic PLAY_ONE_TICK = EnumUtil.getStatistic("PLAY_ONE_MINUTE", "PLAY_ONE_TICK");
+                    final boolean offlineStatisticSupported = VersionUtil.getServerBukkitVersion().isHigherThanOrEqualTo(VersionUtil.v1_15_2_R01);
                     for (final Map.Entry<UUID, BalanceTop.Entry> entry : ess.getBalanceTop().getBalanceTopCache().entrySet()) {
                         final BigDecimal balance = entry.getValue().getBalance();
-                        final User user = ess.getUser(entry.getKey());
 
-                        final Statistic PLAY_ONE_TICK = EnumUtil.getStatistic("PLAY_ONE_MINUTE", "PLAY_ONE_TICK");
-                        final boolean offlineStatisticSupported = VersionUtil.getServerBukkitVersion().isHigherThanOrEqualTo(VersionUtil.v1_15_2_R01);
-                        final long playtime;
-                        if (user.getBase() == null || !user.getBase().isOnline()) {
-                            if (offlineStatisticSupported) {
-                                playtime = Bukkit.getServer().getOfflinePlayer(entry.getKey()).getStatistic(PLAY_ONE_TICK);
-                            } else {
-                                playtime = -1;
-                            }
-                        } else {
-                            playtime = user.getBase().getStatistic(PLAY_ONE_TICK);
-                        }
+                        final long playtime = minimumPlaytime > 0 ? getPlaytime(entry.getKey(), PLAY_ONE_TICK, offlineStatisticSupported) : -1;
                         // Play time in seconds
                         final long playTimeSecs = Math.max(playtime / 20, 0);
 
@@ -140,7 +146,7 @@ public class Commandbalancetop extends EssentialsCommand {
                         if ((ess.getSettings().showZeroBaltop() || balance.compareTo(BigDecimal.ZERO) > 0)
                                 && balance.compareTo(ess.getSettings().getBaltopMinBalance()) >= 0 &&
                                 // Skip playtime check for offline players on versions below 1.15.2
-                                (playtime == -1 || playTimeSecs >= ess.getSettings().getBaltopMinPlaytime())) {
+                                (playtime == -1 || playTimeSecs >= minimumPlaytime)) {
                             newCache.getLines().add(ess.getAdventureFacet().miniToLegacy(tlLiteral("balanceTopLine", pos, entry.getValue().getDisplayName(), AdventureUtil.parsed(NumberUtil.displayCurrency(balance, ess)))));
                         }
                         pos++;

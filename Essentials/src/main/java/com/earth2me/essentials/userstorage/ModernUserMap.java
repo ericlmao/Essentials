@@ -3,6 +3,7 @@ package com.earth2me.essentials.userstorage;
 import com.earth2me.essentials.OfflinePlayerStub;
 import com.earth2me.essentials.User;
 import com.earth2me.essentials.utils.NumberUtil;
+import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -24,6 +25,7 @@ public class ModernUserMap extends CacheLoader<UUID, User> implements IUserMap {
     private final transient IEssentials ess;
     private final transient ModernUUIDCache uuidCache;
     private final transient LoadingCache<UUID, User> userCache;
+    private final transient Cache<UUID, String> usernameCache;
     private final transient ConcurrentMap<UUID, User> onlineUserCache;
 
     private final boolean debugPrintStackWithWarn;
@@ -39,6 +41,10 @@ public class ModernUserMap extends CacheLoader<UUID, User> implements IUserMap {
                 .expireAfterAccess(ess.getSettings().getMaxUserCacheValueExpiry(), TimeUnit.SECONDS)
                 .softValues()
                 .build(this);
+        this.usernameCache = CacheBuilder.newBuilder()
+                .maximumSize(ess.getSettings().getUsernameCacheSize())
+                .expireAfterAccess(ess.getSettings().getUsernameCacheExpiry(), TimeUnit.SECONDS)
+                .build();
 
         // -Dnet.essentialsx.usermap.print-stack=true
         final String printStackProperty = System.getProperty("net.essentialsx.usermap.print-stack", "false");
@@ -120,11 +126,15 @@ public class ModernUserMap extends CacheLoader<UUID, User> implements IUserMap {
 
         final User user = getUser(uuidCache.getCachedUUID(name));
         if (user != null && user.getBase() instanceof OfflinePlayerStub) {
-            if (user.getLastAccountName() != null) {
-                ((OfflinePlayerStub) user.getBase()).setName(user.getLastAccountName());
-            } else {
-                ((OfflinePlayerStub) user.getBase()).setName(name);
+            String cachedName = getCachedUsername(user.getUUID());
+            if (cachedName == null) {
+                cachedName = user.getLastAccountName();
             }
+            if (cachedName == null) {
+                cachedName = name;
+            }
+            cacheUsername(user.getUUID(), cachedName);
+            ((OfflinePlayerStub) user.getBase()).setName(cachedName);
         }
         return user;
     }
@@ -135,6 +145,7 @@ public class ModernUserMap extends CacheLoader<UUID, User> implements IUserMap {
         }
 
         uuidCache.updateCache(uuid, name);
+        cacheUsername(uuid, name);
     }
 
     @SuppressWarnings("NullableProblems")
@@ -142,6 +153,7 @@ public class ModernUserMap extends CacheLoader<UUID, User> implements IUserMap {
     public User load(final UUID uuid) throws Exception {
         final User user = loadUncachedUser(uuid);
         if (user != null) {
+            cacheUsername(user);
             debugLogCache(user);
             return user;
         }
@@ -166,6 +178,7 @@ public class ModernUserMap extends CacheLoader<UUID, User> implements IUserMap {
             user.update(base);
         }
         uuidCache.updateCache(user.getUUID(), user.getName());
+        cacheUsername(user);
 
         return user;
     }
@@ -174,6 +187,7 @@ public class ModernUserMap extends CacheLoader<UUID, User> implements IUserMap {
     public User loadUncachedUser(final UUID uuid) {
         User user = userCache.getIfPresent(uuid);
         if (user != null) {
+            cacheUsername(user);
             return user;
         }
 
@@ -182,6 +196,7 @@ public class ModernUserMap extends CacheLoader<UUID, User> implements IUserMap {
             // This is a real player, cache their UUID.
             user = new User(player, ess);
             uuidCache.updateCache(uuid, player.getName());
+            cacheUsername(uuid, player.getName());
             return user;
         }
 
@@ -191,6 +206,7 @@ public class ModernUserMap extends CacheLoader<UUID, User> implements IUserMap {
             user = new User(player, ess);
             final String accName = user.getLastAccountName();
             ((OfflinePlayerStub) player).setName(accName);
+            cacheUsername(uuid, accName);
             // Check to see if there is already a UUID mapping for the name in the name cache before updating it.
             // Since this code is ran for offline players, there's a chance we could be overriding the mapping
             // for a player who changed their name to an older player's name, let that be handled during join.
@@ -217,6 +233,34 @@ public class ModernUserMap extends CacheLoader<UUID, User> implements IUserMap {
         return uuidCache.getNameCache();
     }
 
+    @Override
+    public String getCachedUsername(final UUID uuid) {
+        return uuid == null ? null : usernameCache.getIfPresent(uuid);
+    }
+
+    @Override
+    public void cacheUsername(final UUID uuid, final String name) {
+        if (uuid != null && name != null && !name.isEmpty()) {
+            usernameCache.put(uuid, name);
+        }
+    }
+
+    private void cacheUsername(final User user) {
+        if (user == null) {
+            return;
+        }
+
+        if (user.getBase() instanceof OfflinePlayerStub) {
+            final String accountName = user.getLastAccountName();
+            if (accountName != null) {
+                cacheUsername(user.getUUID(), accountName);
+            }
+            return;
+        }
+
+        cacheUsername(user.getUUID(), user.getName());
+    }
+
     public String getSanitizedName(final String name) {
         return uuidCache.getSanitizedName(name);
     }
@@ -227,6 +271,7 @@ public class ModernUserMap extends CacheLoader<UUID, User> implements IUserMap {
 
     public void invalidate(final UUID uuid) {
         userCache.invalidate(uuid);
+        usernameCache.invalidate(uuid);
         uuidCache.removeCache(uuid);
     }
 

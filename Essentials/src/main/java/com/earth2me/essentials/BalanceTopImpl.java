@@ -26,6 +26,18 @@ public class BalanceTopImpl implements BalanceTop {
         ess.getServer().getServicesManager().register(BalanceTop.class, this, ess, ServicePriority.Normal);
     }
 
+    private String getBalanceTopName(final User user) {
+        final String cachedName = ess.getUsers().getCachedUsername(user.getUUID());
+        if (user.getBase() == null || user.getBase() instanceof OfflinePlayerStub) {
+            final String accountName = cachedName != null ? cachedName : user.getLastAccountName();
+            ess.getUsers().cacheUsername(user.getUUID(), accountName);
+            return accountName != null ? accountName : user.getName();
+        }
+
+        ess.getUsers().cacheUsername(user.getUUID(), user.getName());
+        return user.isHidden() ? user.getName() : user.getDisplayName();
+    }
+
     private void calculateBalanceTopMap(final CompletableFuture<Void> lock) {
         try {
             final List<Entry> entries = new LinkedList<>();
@@ -41,14 +53,7 @@ public class BalanceTopImpl implements BalanceTop {
                         final BigDecimal userMoney = user.getMoney();
                         user.updateMoneyCache(userMoney);
                         newTotal = newTotal.add(userMoney);
-                        final String name;
-                        if (user.getBase() instanceof OfflinePlayerStub) {
-                            name = user.getLastAccountName();
-                        } else if (user.isHidden()) {
-                            name = user.getName();
-                        } else {
-                            name = user.getDisplayName();
-                        }
+                        final String name = getBalanceTopName(user);
                         entries.add(new BalanceTop.Entry(user.getUUID(), name, userMoney));
                     }
                 }

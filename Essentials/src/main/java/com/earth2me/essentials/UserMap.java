@@ -41,7 +41,12 @@ public class UserMap {
             userPlayer = (Player) player;
         } else {
             final OfflinePlayerStub essPlayer = new OfflinePlayerStub(player.getUniqueId(), Bukkit.getServer());
-            essPlayer.setName(player.getName());
+            String name = userMap.getCachedUsername(player.getUniqueId());
+            if (name == null) {
+                name = player.getName();
+            }
+            userMap.cacheUsername(player.getUniqueId(), name);
+            essPlayer.setName(name);
             userPlayer = essPlayer;
         }
 

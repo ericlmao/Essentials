@@ -305,6 +305,10 @@ public interface ISettings extends IConf {
 
     long getMaxUserCacheValueExpiry();
 
+    int getUsernameCacheSize();
+
+    long getUsernameCacheExpiry();
+
     boolean allowSilentJoinQuit();
 
     boolean isCustomJoinMessage();

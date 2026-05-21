@@ -51,6 +51,30 @@ public interface IUserMap {
     User loadUncachedUser(final UUID uuid);
 
     /**
+     * Gets a cached username by UUID without loading the full user.
+     *
+     * @param uuid the UUID of the user to look up.
+     * @return the cached username, or null if not cached.
+     */
+    String getCachedUsername(final UUID uuid);
+
+    /**
+     * Caches a username by UUID without extending the lifetime of the full user.
+     *
+     * @param uuid the UUID of the user.
+     * @param name the username to cache.
+     */
+    void cacheUsername(final UUID uuid, final String name);
+
+    /**
+     * Gets the lightweight data needed for balance top without loading the full user when possible.
+     *
+     * @param uuid the UUID of the user to look up.
+     * @return the balance top data, or null if not found.
+     */
+    BalanceTopUserData getBalanceTopUserData(final UUID uuid);
+
+    /**
      * Gets the name to UUID cache.
      * @return the name to UUID cache.
      */

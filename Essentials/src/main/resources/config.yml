@@ -905,6 +905,13 @@ baltop-requirements:
 # Set to -1 to disable the limit.
 baltop-entry-limit: -1
 
+# Limit the number of usernames cached separately from full user data.
+# This cache stores names only, not full user data.
+username-cache-size: 10000
+
+# How long, in seconds, usernames should stay cached separately from full user data.
+username-cache-expiry: 21600
+
 # The format of currency, excluding symbols. For symbol configuration, see 'currency-symbol-format-locale' below.
 #
 # "#,##0.00" is how the majority of countries display currency.

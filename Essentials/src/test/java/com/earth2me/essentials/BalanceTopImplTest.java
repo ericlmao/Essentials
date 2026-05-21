@@ -1,15 +1,19 @@
 package com.earth2me.essentials;
 
 import com.earth2me.essentials.userstorage.IUserMap;
+import com.earth2me.essentials.userstorage.BalanceTopUserData;
 import org.bukkit.Server;
 import org.bukkit.plugin.ServicesManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -25,6 +29,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class BalanceTopImplTest {
@@ -112,5 +118,45 @@ public class BalanceTopImplTest {
 
         assertSame(firstFuture, secondFuture);
         assertEquals(1, asyncTasks.size());
+    }
+
+    @Test
+    public void testBalanceTopUsesLightweightUserData() {
+        final UUID uuid = UUID.randomUUID();
+        final BalanceTopImpl balanceTop = new BalanceTopImpl(ess);
+        final BalanceTopUserData userData = new BalanceTopUserData(uuid, "DiskName", BigDecimal.TEN, false, false, 1, 1);
+
+        when(users.getAllUserUUIDs()).thenReturn(Collections.singleton(uuid));
+        when(users.getBalanceTopUserData(uuid)).thenReturn(userData);
+        when(settings.isNpcsInBalanceRanking()).thenReturn(false);
+
+        final CompletableFuture<Void> future = balanceTop.calculateBalanceTopMapAsync();
+        asyncTasks.get(0).run();
+        future.join();
+
+        assertEquals("DiskName", balanceTop.getBalanceTopCache().get(uuid).getDisplayName());
+        assertEquals(BigDecimal.TEN, balanceTop.getBalanceTopCache().get(uuid).getBalance());
+        verify(users, never()).loadUncachedUser(uuid);
+    }
+
+    @Test
+    public void testBalanceTopSkipsSnapshotNpcAndExemptUsers() {
+        final UUID npcUuid = UUID.randomUUID();
+        final UUID exemptUuid = UUID.randomUUID();
+        final BalanceTopImpl balanceTop = new BalanceTopImpl(ess);
+
+        final HashSet<UUID> uuids = new HashSet<>();
+        uuids.add(npcUuid);
+        uuids.add(exemptUuid);
+        when(users.getAllUserUUIDs()).thenReturn(uuids);
+        when(users.getBalanceTopUserData(npcUuid)).thenReturn(new BalanceTopUserData(npcUuid, "Npc", BigDecimal.TEN, true, false, 1, 1));
+        when(users.getBalanceTopUserData(exemptUuid)).thenReturn(new BalanceTopUserData(exemptUuid, "Exempt", BigDecimal.TEN, false, true, 1, 1));
+        when(settings.isNpcsInBalanceRanking()).thenReturn(false);
+
+        final CompletableFuture<Void> future = balanceTop.calculateBalanceTopMapAsync();
+        asyncTasks.get(0).run();
+        future.join();
+
+        assertTrue(balanceTop.getBalanceTopCache().isEmpty());
     }
 }

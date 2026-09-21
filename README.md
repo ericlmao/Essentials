@@ -130,3 +130,13 @@ auto-accepted `/tpa`, and `/tpaall` requests from that player, removes their que
 and rechecks the preference before accepting a request. Chat and `/ignore` are independent.
 The preference persists in the existing Essentials user data as `teleport-blocked`.
 Previously accepted teleports and staff teleport commands are not revoked by this preference.
+
+## Repairing with experience
+
+`/xprepair` previews a full repair of the single item held in the main hand at one raw
+XP point per missing durability. `/xprepair confirm` consumes that quote within 30 seconds.
+The item, metadata, slot, damage and current XP balance must still match the repair requirements.
+There are no partial repairs, stack repairs or unbreakable-item repairs. Enchantments and
+custom metadata are retained; custom maximum durability is respected on supported servers.
+The command requires `essentials.xprepair` (available by default) and does not charge money.
+Existing `/repair`, repair permissions, economy pricing and administrative repair are unchanged.

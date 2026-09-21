@@ -68,6 +68,7 @@ public class User extends UserData implements Comparable<User>, IMessageRecipien
     // User command confirmation strings
     private final Map<User, BigDecimal> confirmingPayments = new WeakHashMap<>();
     private String confirmingClearCommand;
+    private transient XpRepairConfirmation xpRepairConfirmation;
     private String lastHomeConfirmation;
 
     // User teleport variables
@@ -1249,6 +1250,16 @@ public class User extends UserData implements Comparable<User>, IMessageRecipien
     @Override
     public Map<User, BigDecimal> getConfirmingPayments() {
         return confirmingPayments;
+    }
+
+    public void setXpRepairConfirmation(final XpRepairConfirmation confirmation) {
+        this.xpRepairConfirmation = confirmation;
+    }
+
+    public XpRepairConfirmation takeXpRepairConfirmation() {
+        final XpRepairConfirmation confirmation = xpRepairConfirmation;
+        xpRepairConfirmation = null;
+        return confirmation;
     }
 
     public String getConfirmingClearCommand() {

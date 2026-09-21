@@ -403,6 +403,10 @@ commands:
     description: Renames a home.
     usage: /<command> <[player:]name> <new name>
     aliases: [erenamehome]
+  xprepair:
+    description: Repair the held item with experience points.
+    usage: /<command> [confirm]
+    aliases: [exprepair]
   repair:
     description: Repairs the durability of one or all items.
     usage: /<command> [hand|all]
@@ -1144,6 +1148,9 @@ permissions:
     description: Allows access to the /recipe command
   essentials.remove:
     description: Allows access to the /remove command
+  essentials.xprepair:
+    description: Allows repairing a held item for one XP point per durability.
+    default: true
   essentials.repair:
     description: Allows access to the /repair command
   essentials.repair.all:

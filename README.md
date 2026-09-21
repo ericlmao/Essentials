@@ -121,3 +121,12 @@ See [CONTRIBUTING.md](https://github.com/EssentialsX/Essentials/blob/2.x/CONTRIB
 * Do you want to help others set up EssentialsX? You can contribute to the
   [EssentialsX docs](https://github.com/EssentialsX/wiki). You can also join the
   [MOSS Discord community](https://discord.gg/casfFyh) and provide direct community support to other EssentialsX users.
+
+## Per-player teleport request preferences
+
+`/tpblock <player>` toggles a UUID-based teleport request block; `/tpblock` lists blocked players.
+The command requires `essentials.tpblock` (available by default). It blocks `/tpa`, `/tpahere`,
+auto-accepted `/tpa`, and `/tpaall` requests from that player, removes their queued requests,
+and rechecks the preference before accepting a request. Chat and `/ignore` are independent.
+The preference persists in the existing Essentials user data as `teleport-blocked`.
+Previously accepted teleports and staff teleport commands are not revoked by this preference.

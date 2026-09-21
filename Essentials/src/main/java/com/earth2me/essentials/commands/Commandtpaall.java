@@ -33,7 +33,7 @@ public class Commandtpaall extends EssentialsCommand {
             if (target == player) {
                 continue;
             }
-            if (!player.isTeleportEnabled()) {
+            if (!player.isTeleportEnabled() || player.isTeleportRequestBlocked(target.getUUID())) {
                 continue;
             }
             if (sender.getSender().equals(target.getBase()) && target.getWorld() != player.getWorld() && ess.getSettings().isWorldTeleportPermissions() && !target.isAuthorized("essentials.worlds." + target.getWorld().getName())) {
@@ -43,7 +43,7 @@ public class Commandtpaall extends EssentialsCommand {
             try {
                 final TPARequestEvent tpaEvent = new TPARequestEvent(sender, player, true);
                 ess.getServer().getPluginManager().callEvent(tpaEvent);
-                if (tpaEvent.isCancelled()) {
+                if (tpaEvent.isCancelled() || player.isTeleportRequestBlocked(target.getUUID())) {
                     sender.sendTl("teleportRequestCancelled", player.getDisplayName());
                     continue;
                 }

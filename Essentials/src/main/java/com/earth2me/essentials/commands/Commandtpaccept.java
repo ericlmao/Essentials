@@ -81,7 +81,7 @@ public class Commandtpaccept extends EssentialsCommand {
         }
         final User requester = ess.getUser(request.getRequesterUuid());
 
-        if (!requester.getBase().isOnline()) {
+        if (user.isTeleportRequestBlocked(request.getRequesterUuid()) || !requester.getBase().isOnline()) {
             user.removeTpaRequest(request.getName());
             throw new TranslatableException("noPendingRequest");
         }
@@ -96,7 +96,7 @@ public class Commandtpaccept extends EssentialsCommand {
 
         final TeleportRequestResponseEvent event = new TeleportRequestResponseEvent(user, requester, request, true);
         Bukkit.getPluginManager().callEvent(event);
-        if (event.isCancelled()) {
+        if (event.isCancelled() || user.isTeleportRequestBlocked(request.getRequesterUuid())) {
             if (ess.getSettings().isDebug()) {
                 ess.getLogger().info("TPA accept cancelled by API for " + user.getName() + " (requested by " + requester.getName() + ")");
             }

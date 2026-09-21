@@ -340,6 +340,7 @@ player-commands:
   - time
   - tpa
   - tpaccept
+  - tpblock
   - tpahere
   - tpdeny
   - warp

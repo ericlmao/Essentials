@@ -403,7 +403,18 @@ public class User extends UserData implements Comparable<User>, IMessageRecipien
     }
 
     @Override
+    public void setTeleportRequestBlocked(final UUID requester, final boolean blocked) {
+        super.setTeleportRequestBlocked(requester, blocked);
+        if (blocked) {
+            teleportRequestQueue.values().removeIf(request -> requester.equals(request.getRequesterUuid()));
+        }
+    }
+
+    @Override
     public void requestTeleport(final User player, final boolean here) {
+        if (isTeleportRequestBlocked(player.getUUID())) {
+            return;
+        }
         final TpaRequest request = teleportRequestQueue.getOrDefault(player.getName(), new TpaRequest(player.getName(), player.getUUID()));
         request.setTime(System.currentTimeMillis());
         request.setHere(here);

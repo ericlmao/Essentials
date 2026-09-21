@@ -37,6 +37,10 @@ public class Commandtpa extends EssentialsCommand {
             throw new TranslatableException("noPerm", "essentials.worlds." + player.getWorld().getName());
         }
 
+        if (player.isTeleportRequestBlocked(user.getUUID())) {
+            throw new TranslatableException("teleportRequestCancelled", player.getDisplayName());
+        }
+
         // Don't let sender request teleport twice to the same player.
         if (player.hasOutstandingTpaRequest(user.getName(), false)) {
             throw new TranslatableException("requestSentAlready", player.getDisplayName());
@@ -60,7 +64,7 @@ public class Commandtpa extends EssentialsCommand {
         if (!player.isIgnoredPlayer(user)) {
             final TPARequestEvent tpaEvent = new TPARequestEvent(user.getSource(), player, false);
             ess.getServer().getPluginManager().callEvent(tpaEvent);
-            if (tpaEvent.isCancelled()) {
+            if (tpaEvent.isCancelled() || player.isTeleportRequestBlocked(user.getUUID())) {
                 throw new TranslatableException("teleportRequestCancelled", player.getDisplayName());
             }
             player.requestTeleport(user, false);

@@ -24,6 +24,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -410,6 +411,23 @@ public abstract class UserData extends PlayerExtension implements IConf {
 
     public void setAutoTeleportEnabled(final boolean set) {
         holder.teleportAuto(set);
+        config.save();
+    }
+
+    public boolean isTeleportRequestBlocked(final UUID requester) {
+        return holder.teleportBlocked().contains(requester);
+    }
+
+    public Set<UUID> getTeleportBlockedPlayers() {
+        return new HashSet<>(holder.teleportBlocked());
+    }
+
+    public void setTeleportRequestBlocked(final UUID requester, final boolean blocked) {
+        if (blocked) {
+            holder.teleportBlocked().add(requester);
+        } else {
+            holder.teleportBlocked().remove(requester);
+        }
         config.save();
     }
 

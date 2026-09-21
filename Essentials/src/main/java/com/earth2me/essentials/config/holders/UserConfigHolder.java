@@ -148,6 +148,16 @@ public class UserConfigHolder {
     }
 
     @DeleteOnEmpty
+    private @MonotonicNonNull Set<UUID> teleportBlocked;
+
+    public Set<UUID> teleportBlocked() {
+        if (this.teleportBlocked == null) {
+            this.teleportBlocked = new HashSet<>();
+        }
+        return this.teleportBlocked;
+    }
+
+    @DeleteOnEmpty
     private @MonotonicNonNull List<UUID> ignore;
 
     public List<UUID> ignore() {

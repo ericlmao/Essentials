@@ -523,6 +523,10 @@ commands:
     description: Requests all players online to teleport to you.
     usage: /<command> <player>
     aliases: [etpaall]
+  tpblock:
+    description: Toggle teleport requests from an individual player.
+    usage: /<command> [player]
+    aliases: [etpblock]
   tpaccept:
     description: Accepts teleport requests.
     usage: /<command> [player|*]
@@ -1330,6 +1334,9 @@ permissions:
     description: Allows access to the /tpaall command
   essentials.tpacancel:
     description: Allows access to the /tpaccept command
+  essentials.tpblock:
+    description: Allows blocking teleport requests from individual players.
+    default: true
   essentials.tpaccept:
     description: Allows access to the /tpaccept command
   essentials.tpahere:

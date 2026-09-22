@@ -37,6 +37,7 @@ import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -403,7 +404,18 @@ public class User extends UserData implements Comparable<User>, IMessageRecipien
     }
 
     @Override
+    public void setTeleportRequestBlocked(final @NonNull UUID requester, final boolean blocked) {
+        super.setTeleportRequestBlocked(requester, blocked);
+        if (blocked) {
+            teleportRequestQueue.values().removeIf(request -> requester.equals(request.getRequesterUuid()));
+        }
+    }
+
+    @Override
     public void requestTeleport(final User player, final boolean here) {
+        if (isTeleportRequestBlocked(player.getUUID())) {
+            return;
+        }
         final TpaRequest request = teleportRequestQueue.getOrDefault(player.getName(), new TpaRequest(player.getName(), player.getUUID()));
         request.setTime(System.currentTimeMillis());
         request.setHere(here);

@@ -49,6 +49,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
@@ -68,6 +69,7 @@ public class User extends UserData implements Comparable<User>, IMessageRecipien
     // User command confirmation strings
     private final Map<User, BigDecimal> confirmingPayments = new WeakHashMap<>();
     private String confirmingClearCommand;
+    private transient @Nullable XpRepairConfirmation xpRepairConfirmation;
     private String lastHomeConfirmation;
 
     // User teleport variables
@@ -1249,6 +1251,16 @@ public class User extends UserData implements Comparable<User>, IMessageRecipien
     @Override
     public Map<User, BigDecimal> getConfirmingPayments() {
         return confirmingPayments;
+    }
+
+    public void setXpRepairConfirmation(final @NonNull XpRepairConfirmation confirmation) {
+        this.xpRepairConfirmation = confirmation;
+    }
+
+    public Optional<XpRepairConfirmation> takeXpRepairConfirmation() {
+        final XpRepairConfirmation confirmation = xpRepairConfirmation;
+        xpRepairConfirmation = null;
+        return Optional.ofNullable(confirmation);
     }
 
     public String getConfirmingClearCommand() {

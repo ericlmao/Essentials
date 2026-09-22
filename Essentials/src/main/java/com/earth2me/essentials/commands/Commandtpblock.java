@@ -2,6 +2,7 @@ package com.earth2me.essentials.commands;
 
 import com.earth2me.essentials.User;
 import org.bukkit.Server;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
 import java.util.Collections;
 import java.util.List;
@@ -13,7 +14,7 @@ public class Commandtpblock extends EssentialsCommand {
     }
 
     @Override
-    protected void run(final Server server, final User user, final String commandLabel, final String[] args) throws Exception {
+    protected void run(final @NonNull Server server, final @NonNull User user, final @NonNull String commandLabel, final @NonNull String[] args) throws Exception {
         if (args.length == 0) {
             final StringBuilder names = new StringBuilder();
             for (final UUID uuid : user.getTeleportBlockedPlayers()) {
@@ -38,7 +39,7 @@ public class Commandtpblock extends EssentialsCommand {
     }
 
     @Override
-    protected List<String> getTabCompleteOptions(final Server server, final User user, final String commandLabel, final String[] args) {
+    protected List<String> getTabCompleteOptions(final @NonNull Server server, final @NonNull User user, final @NonNull String commandLabel, final @NonNull String[] args) {
         return args.length == 1 ? getPlayers(user) : Collections.emptyList();
     }
 }

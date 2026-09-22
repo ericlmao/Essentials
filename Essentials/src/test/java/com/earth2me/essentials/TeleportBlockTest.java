@@ -3,6 +3,10 @@ package com.earth2me.essentials;
 import com.earth2me.essentials.commands.IEssentialsCommand;
 import com.earth2me.essentials.commands.NoChargeException;
 import net.ess3.api.TranslatableException;
+import net.ess3.api.events.TPARequestEvent;
+import net.essentialsx.api.v2.events.TeleportRequestResponseEvent;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -110,4 +114,37 @@ public class TeleportBlockTest {
         run("tpaall", requester);
         assertFalse(recipient.hasPendingTpaRequests(false, false));
     }
+
+    @Test
+    public void blocksRequestsWhenListenerChangesPreference() throws Exception {
+        server.getPluginManager().registerEvents(new Listener() {
+            @EventHandler
+            public void onRequest(final TPARequestEvent event) {
+                recipient.setTeleportRequestBlocked(requester.getUUID(), true);
+            }
+        }, ess);
+        for (final String command : new String[] {"tpa", "tpahere"}) {
+            recipient.setTeleportRequestBlocked(requester.getUUID(), false);
+            assertThrows(TranslatableException.class, () -> run(command, requester, recipient.getName()));
+            assertFalse(recipient.hasPendingTpaRequests(false, false));
+        }
+        recipient.setTeleportRequestBlocked(requester.getUUID(), false);
+        run("tpaall", requester);
+        assertFalse(recipient.hasPendingTpaRequests(false, false));
+    }
+
+    @Test
+    public void blocksAcceptanceWhenListenerChangesPreference() throws Exception {
+        server.getPluginManager().registerEvents(new Listener() {
+            @EventHandler
+            public void onResponse(final TeleportRequestResponseEvent event) {
+                recipient.setTeleportRequestBlocked(requester.getUUID(), true);
+            }
+        }, ess);
+        recipient.requestTeleport(requester, false);
+        run("tpaccept", recipient);
+        assertFalse(recipient.hasPendingTpaRequests(false, false));
+        assertTrue(recipient.isTeleportRequestBlocked(requester.getUUID()));
+    }
+
 }

@@ -18,6 +18,7 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
 import java.io.File;
 import java.math.BigDecimal;
@@ -414,7 +415,7 @@ public abstract class UserData extends PlayerExtension implements IConf {
         config.save();
     }
 
-    public boolean isTeleportRequestBlocked(final UUID requester) {
+    public boolean isTeleportRequestBlocked(final @NonNull UUID requester) {
         return holder.teleportBlocked().contains(requester);
     }
 
@@ -422,7 +423,7 @@ public abstract class UserData extends PlayerExtension implements IConf {
         return new HashSet<>(holder.teleportBlocked());
     }
 
-    public void setTeleportRequestBlocked(final UUID requester, final boolean blocked) {
+    public void setTeleportRequestBlocked(final @NonNull UUID requester, final boolean blocked) {
         if (blocked) {
             holder.teleportBlocked().add(requester);
         } else {

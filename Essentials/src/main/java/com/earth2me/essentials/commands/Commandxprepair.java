@@ -10,9 +10,12 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 public class Commandxprepair extends EssentialsCommand {
     public Commandxprepair() {
@@ -20,15 +23,15 @@ public class Commandxprepair extends EssentialsCommand {
     }
 
     @Override
-    public void run(final Server server, final User user, final String commandLabel, final String[] args) throws Exception {
+    public void run(final @NonNull Server server, final @NonNull User user, final @NonNull String commandLabel, final @NonNull String[] args) throws Exception {
         if (args.length > 1 || args.length == 1 && !args[0].equalsIgnoreCase("confirm")) {
             throw new NotEnoughArgumentsException();
         }
-        final XpRepairConfirmation confirmation = user.takeXpRepairConfirmation();
+        final Optional<XpRepairConfirmation> confirmation = user.takeXpRepairConfirmation();
         final Player player = user.getBase();
         final ItemStack held = user.getItemInHand();
         final int slot = player.getInventory().getHeldItemSlot();
-        if (args.length == 1 && (confirmation == null || !confirmation.matches(held, slot, System.currentTimeMillis()))) {
+        if (args.length == 1 && (!confirmation.isPresent() || !confirmation.get().matches(held, slot, System.currentTimeMillis()))) {
             throw new TranslatableException("xpRepairChanged");
         }
         final int cost = repairCost(held);
@@ -51,7 +54,7 @@ public class Commandxprepair extends EssentialsCommand {
         throw new NoChargeException();
     }
 
-    private int repairCost(final ItemStack item) throws TranslatableException {
+    private int repairCost(final @Nullable ItemStack item) throws TranslatableException {
         if (item == null || item.getAmount() != 1 || MaterialUtil.isAir(item.getType())) {
             throw new TranslatableException("repairInvalidType");
         }
@@ -81,7 +84,7 @@ public class Commandxprepair extends EssentialsCommand {
     }
 
     @Override
-    protected List<String> getTabCompleteOptions(final Server server, final User user, final String commandLabel, final String[] args) {
+    protected List<String> getTabCompleteOptions(final @NonNull Server server, final @NonNull User user, final @NonNull String commandLabel, final @NonNull String[] args) {
         return args.length == 1 ? Collections.singletonList("confirm") : Collections.emptyList();
     }
 }

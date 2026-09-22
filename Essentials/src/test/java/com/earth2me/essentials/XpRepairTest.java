@@ -138,4 +138,17 @@ public class XpRepairTest {
         assertEquals(0, MaterialUtil.getDamage(user.getItemInHand()));
     }
 
+    @Test
+    public void quoteSnapshotsMetadataAndCanOnlyBeConsumedOnce() {
+        final ItemStack item = hold(20, 200);
+        final XpRepairConfirmation quote = new XpRepairConfirmation(item, 0, 200L);
+        final ItemMeta meta = item.getItemMeta();
+        meta.setDisplayName("Changed after quote");
+        item.setItemMeta(meta);
+        assertFalse(quote.matches(item, 0, 100L));
+        user.setXpRepairConfirmation(quote);
+        assertEquals(quote, user.takeXpRepairConfirmation().get());
+        assertFalse(user.takeXpRepairConfirmation().isPresent());
+    }
+
 }
